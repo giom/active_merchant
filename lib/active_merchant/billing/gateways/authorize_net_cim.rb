@@ -693,6 +693,7 @@ module ActiveMerchant #:nodoc:
             'purchase_order_number' => direct_response_fields[36],
             'md5_hash' => direct_response_fields[37],
             'card_code' => direct_response_fields[38],
+            'balance_on_card' => direct_response_fields[44],
             'cardholder_authentication_verification_response' => direct_response_fields[39]
           }
         )
