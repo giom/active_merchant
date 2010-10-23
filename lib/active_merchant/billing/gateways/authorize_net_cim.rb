@@ -370,6 +370,9 @@ module ActiveMerchant #:nodoc:
       
       def build_create_customer_profile_request(xml, options)
         add_profile(xml, options[:profile])
+        
+        debugger
+        xml.tag!('validationMode', CIM_VALIDATION_MODES[options[:validation_mode]]) if options[:validation_mode] && options[:profile][:payment_profiles]
 
         xml.target!
       end
@@ -639,20 +642,28 @@ module ActiveMerchant #:nodoc:
         test_mode = test? || message =~ /Test Mode/
         success = response_params['messages']['result_code'] == 'Ok'
 
-        response = Response.new(success, message, response_params,
-          :test => test_mode,
-          :authorization => response_params['customer_profile_id'] || (response_params['profile'] ? response_params['profile']['customer_profile_id'] : nil)
-        )
-        
-        response.params['direct_response'] = parse_direct_response(response) if response.params['direct_response']
-        response
+        response_params['direct_response'] = parse_direct_response(response_params["direct_response"]) if response_params['direct_response']
+        response_params['validation_direct_response'] = parse_direct_response(response_params['validation_direct_response_list']['string']) if response_params['validation_direct_response_list']
+        response_params['direct_response']  ||= response_params['validation_direct_response']
+
+        options = {
+                    :test => test_mode,
+                    :authorization => response_params['customer_profile_id'] || (response_params['profile'] ? response_params['profile']['customer_profile_id'] : nil)
+                  }
+                  
+        if dr = response_params["direct_response"]
+          options[:cvv_result] = dr["card_code"]
+          options[:avs_result] =  { :code => dr['avs_result_code'] }
+        end
+
+        Response.new(success, message, response_params, options)
       end
       
-      def parse_direct_response(response)
-        direct_response = {'raw' => response.params['direct_response']}
-        direct_response_fields = response.params['direct_response'].split(',')
+      def parse_direct_response(raw)
+        direct_response = {'raw' => raw}
+        direct_response_fields = raw.split(',')
 
-        direct_response.merge(
+        direct_response.merge!(
           {
             'response_code' => direct_response_fields[0],
             'response_subcode' => direct_response_fields[1],
