@@ -76,9 +76,17 @@ instapay:
   login: TEST0
   password:
 
+inspire:
+  login: demo
+  password: password
+
 jetpay:
   login: TESTTERMINAL
       
+iridium:
+    login: LOGIN
+    password: PASSWORD
+
 linkpoint:
   login: STOREID
   pem: |--
@@ -97,6 +105,10 @@ modern_payments:
 moneris:
   login: store1
   password: yesguy
+  
+netaxept:
+  login: LOGIN
+  password: PASSWORD
 
 # Working credentials, no need to replace
 # Contact Netbilling for login info to the admin area  
@@ -112,6 +124,10 @@ ogone:
   user: USER
   password: PASSWORD
   signature: SIGNATURE
+  
+paybox_direct:
+  login: 199988899
+  password: 1999888I
 
 payflow:
   login: LOGIN
@@ -304,6 +320,10 @@ sage:
 sallie_mae:
   login: TEST0
 
+secure_net:
+  login: X
+  password: Y
+
 secure_pay:
   login: LOGIN
   password: PASSWORD
@@ -363,3 +383,5 @@ garanti:
   login: 'paymentuser'
   password: 'userpayment'
   
+direc_pay:
+  mid: 200904281000001
