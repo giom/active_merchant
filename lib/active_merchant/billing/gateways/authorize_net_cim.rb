@@ -653,7 +653,7 @@ module ActiveMerchant #:nodoc:
                   
         if dr = response_params["direct_response"]
           options[:cvv_result] = dr["card_code"]
-          options[:avs_result] =  { :code => dr['avs_result_code'] }
+          options[:avs_result] =  { :code => dr['avs_response'] }
         end
 
         Response.new(success, message, response_params, options)
