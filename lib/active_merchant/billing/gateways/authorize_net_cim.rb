@@ -644,7 +644,12 @@ module ActiveMerchant #:nodoc:
         success = response_params['messages']['result_code'] == 'Ok'
 
         response_params['direct_response'] = parse_direct_response(response_params["direct_response"]) if response_params['direct_response']
-        response_params['validation_direct_response'] = parse_direct_response(response_params['validation_direct_response_list']['string']) if response_params['validation_direct_response_list']
+        if response_params['validation_direct_response_list']
+          response_params['validation_direct_response'] = parse_direct_response(response_params['validation_direct_response_list']['string']) 
+        elsif response_params['validation_direct_response']
+          response_params['validation_direct_response'] = parse_direct_response(response_params['validation_direct_response'])
+        end
+        
         response_params['direct_response']  ||= response_params['validation_direct_response']
 
         options = {
