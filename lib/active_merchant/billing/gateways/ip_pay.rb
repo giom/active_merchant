@@ -1,6 +1,6 @@
 module ActiveMerchant #:nodoc:
   module Billing #:nodoc:
-    class JetpayGateway < Gateway
+    class IpPayGateway < Gateway
       TEST_URL = 'https://test1.jetpay.com/jetpay'
       LIVE_URL = 'https://gateway17.jetpay.com/jetpay'
       
@@ -11,10 +11,10 @@ module ActiveMerchant #:nodoc:
       self.supported_cardtypes = [:visa, :master, :american_express, :discover]
       
       # The homepage URL of the gateway
-      self.homepage_url = 'http://www.jetpay.com/'
+      self.homepage_url = 'http://www.ippay.com/'
       
       # The name of the gateway
-      self.display_name = 'JetPay'
+      self.display_name = 'IpPay'
       
       # all transactions are in cents
       self.money_format = :cents
@@ -94,14 +94,21 @@ module ActiveMerchant #:nodoc:
           credit_card = transaction_id_or_card
         end
 
-        commit(money, build_credit_request('CREDIT', money, transaction_id, credit_card))
+      def refund(money, reference, options = {})
+        transaction_id = reference.split(";").first
+        credit_card = options[:credit_card]
+        commit(money, build_credit_request('CREDIT', money, transaction_id, credit_card, options))
+      end
+
+      def tokenize(credit_card)
+        commit(nil, build_tokenize_request(credit_card))
       end
       
       private
       
       def build_xml_request(transaction_type, transaction_id = nil, &block)
         xml = Builder::XmlMarkup.new
-        xml.tag! 'JetPay' do
+        xml.tag! 'ippay' do
           # The basic values needed for any request
           xml.tag! 'TerminalID', @options[:login]
           xml.tag! 'TransactionType', transaction_type
@@ -117,7 +124,7 @@ module ActiveMerchant #:nodoc:
       
       def build_sale_request(money, credit_card, options)
         build_xml_request('SALE') do |xml|
-          add_credit_card(xml, credit_card)
+          add_credit_card(xml, credit_card, options)
           add_addresses(xml, options)
           add_customer_data(xml, options)
           add_invoice_data(xml, options)
@@ -129,11 +136,12 @@ module ActiveMerchant #:nodoc:
       
       def build_authonly_request(money, credit_card, options)
         build_xml_request('AUTHONLY') do |xml|
-          add_credit_card(xml, credit_card)
+          add_credit_card(xml, credit_card, options)
           add_addresses(xml, options)
           add_customer_data(xml, options)
           add_invoice_data(xml, options)
           xml.tag! 'TotalAmount', amount(money)
+          xml.tag! 'Origin', "RECURRING" if options[:reccuring] || @options[:recurring]
           
           xml.target!
         end
@@ -153,11 +161,19 @@ module ActiveMerchant #:nodoc:
       end
 
       # `transaction_id` may be nil for unlinked credit transactions.
-      def build_credit_request(transaction_type, money, transaction_id, card)
+      def build_credit_request(transaction_type, money, transaction_id, card, options)
         build_xml_request(transaction_type, transaction_id) do |xml|
-          add_credit_card(xml, card) if card
+          add_credit_card(xml, card, options) if card
           xml.tag! 'TotalAmount', amount(money)
           
+          xml.target!
+        end
+      end
+
+      def build_tokenize_request(credit_card)
+        build_xml_request('TOKENIZE') do |xml|
+          add_credit_card(xml, credit_card)
+
           xml.target!
         end
       end
@@ -211,18 +227,23 @@ module ActiveMerchant #:nodoc:
         [ response[:transaction_id], response[:approval], original_amount ].join(";")
       end
       
-      def add_credit_card(xml, credit_card)
-        xml.tag! 'CardNum', credit_card.number
-        xml.tag! 'CardExpMonth', format_exp(credit_card.month)
-        xml.tag! 'CardExpYear', format_exp(credit_card.year)
+      def add_credit_card(xml, credit_card, options = {})
+        if options[:token]
+          xml.tag! 'Token',  options[:token]
 
-        if credit_card.first_name || credit_card.last_name
-          xml.tag! 'CardName', [credit_card.first_name,credit_card.last_name].compact.join(' ')
+        else
+          xml.tag!('CardNum', credit_card.number, options[:tokenize] ? {'Tokenize' => true} : {})
+          xml.tag! 'CardExpMonth', format_exp(credit_card.month)
+          xml.tag! 'CardExpYear', format_exp(credit_card.year)
+
+          if credit_card.first_name || credit_card.last_name
+            xml.tag! 'CardName', [credit_card.first_name,credit_card.last_name].compact.join(' ')
+          end
+          unless credit_card.verification_value.nil? || (credit_card.verification_value.length == 0)
+            xml.tag! 'CVV2', credit_card.verification_value
+          end
         end
 
-        unless credit_card.verification_value.nil? || (credit_card.verification_value.length == 0)
-          xml.tag! 'CVV2', credit_card.verification_value
-        end
       end
       
       def add_addresses(xml, options)
