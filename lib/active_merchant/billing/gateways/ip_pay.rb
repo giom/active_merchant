@@ -1,7 +1,7 @@
 module ActiveMerchant #:nodoc:
   module Billing #:nodoc:
     class IpPayGateway < Gateway
-      TEST_URL = 'https://test1.jetpay.com/jetpay'
+      TEST_URL = 'https://testgtwy.ippay.com/ippay'
       LIVE_URL = 'https://gateway17.jetpay.com/jetpay'
       
       # The countries the gateway supports merchants from as 2 digit ISO country codes
