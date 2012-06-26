@@ -58,7 +58,8 @@ module ActiveMerchant #:nodoc:
         "025" =>  "Transaction Not Found.",
         "981" =>  "AVS Error.",
         "913" =>  "Invalid Card Type.",
-        "996" =>  "Terminal ID Not Found."
+        "996" =>  "Terminal ID Not Found.",
+        nil   =>  "No response returned (missing credentials?)."
       }
       
       def initialize(options = {})
@@ -85,14 +86,13 @@ module ActiveMerchant #:nodoc:
       end
 
       def credit(money, transaction_id_or_card, options = {})
-        
         if transaction_id_or_card.is_a?(String)
-          transaction_id = transaction_id_or_card.split(";").first
-          credit_card = options[:credit_card]
+          deprecated CREDIT_DEPRECATION_MESSAGE
+          refund(money, transaction_id_or_card, options)
         else
-          transaction_id = nil
-          credit_card = transaction_id_or_card
+          commit(money, build_credit_request('CREDIT', money, nil, transaction_id_or_card))
         end
+      end
 
       def refund(money, reference, options = {})
         transaction_id = reference.split(";").first
@@ -103,6 +103,7 @@ module ActiveMerchant #:nodoc:
       def tokenize(credit_card)
         commit(nil, build_tokenize_request(credit_card))
       end
+
       
       private
       
@@ -193,6 +194,8 @@ module ActiveMerchant #:nodoc:
       end
       
       def parse(body)
+        return {} if body.blank?
+
         xml = REXML::Document.new(body)
         
         response = {}
