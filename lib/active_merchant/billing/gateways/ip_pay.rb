@@ -277,6 +277,9 @@ module ActiveMerchant #:nodoc:
       def add_customer_data(xml, options)
         xml.tag! 'Email', options[:email] if options[:email]
         xml.tag! 'UserIPAddress', options[:ip] if options[:ip]
+        xml.tag! 'UDField1', options[:user_field1] if options[:user_field1]
+        xml.tag! 'UDField2', options[:user_field2] if options[:user_field2]
+        xml.tag! 'UDField3', options[:user_field3] if options[:user_field3]
       end
       
       def add_invoice_data(xml, options)
