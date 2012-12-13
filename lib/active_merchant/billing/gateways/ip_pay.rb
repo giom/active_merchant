@@ -130,6 +130,7 @@ module ActiveMerchant #:nodoc:
           add_customer_data(xml, options)
           add_invoice_data(xml, options)
           xml.tag! 'TotalAmount', amount(money)
+          xml.tag! 'Origin', "RECURRING" if options[:reccuring] || @options[:recurring]
           
           xml.target!
         end
