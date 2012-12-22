@@ -165,7 +165,7 @@ module ActiveMerchant #:nodoc:
       # `transaction_id` may be nil for unlinked credit transactions.
       def build_credit_request(transaction_type, money, transaction_id, card, options)
         build_xml_request(transaction_type, transaction_id) do |xml|
-          add_credit_card(xml, card, options) if card
+          add_credit_card(xml, card, options) if card || options[:token]
           xml.tag! 'TotalAmount', amount(money)
           
           xml.target!
