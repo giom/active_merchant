@@ -27,6 +27,8 @@ module ActiveMerchant #:nodoc:
     # 4. Type in the answer to the secret question configured on setup
     # 5. Click Submit
     class AuthorizeNetCimGateway < Gateway
+      class_inheritable_accessor :test_url, :live_url
+
       self.test_url = 'https://apitest.authorize.net/xml/v1/request.api'
       self.live_url = 'https://api.authorize.net/xml/v1/request.api'
 
