@@ -1,7 +1,10 @@
 module ActiveMerchant #:nodoc:
   module Billing #:nodoc:
     class MerchantWareGateway < Gateway
+      class_attribute :v4_live_url
+
       self.live_url = self.test_url = 'https://ps1.merchantware.net/MerchantWARE/ws/RetailTransaction/TXRetail.asmx'
+      self.v4_live_url = 'https://ps1.merchantware.net/Merchantware/ws/RetailTransaction/v4/Credit.asmx'
 
       self.supported_countries = ['US']
       self.supported_cardtypes = [:visa, :master, :american_express, :discover]
@@ -12,13 +15,19 @@ module ActiveMerchant #:nodoc:
                          "xmlns:xsd"  => "http://www.w3.org/2001/XMLSchema",
                          "xmlns:env" => "http://schemas.xmlsoap.org/soap/envelope/"
                        }
+      ENV_NAMESPACES_V4 = { "xmlns:xsi"  => "http://www.w3.org/2001/XMLSchema-instance",
+                            "xmlns:xsd"  => "http://www.w3.org/2001/XMLSchema",
+                            "xmlns:soap" => "http://schemas.xmlsoap.org/soap/envelope/"
+                          }
+
       TX_NAMESPACE = "http://merchantwarehouse.com/MerchantWARE/Client/TransactionRetail"
+      TX_NAMESPACE_V4 = "http://schemas.merchantwarehouse.com/merchantware/40/Credit/"
 
       ACTIONS = {
         :purchase  => "IssueKeyedSale",
         :authorize => "IssueKeyedPreAuth",
         :capture   => "IssuePostAuth",
-        :void      => "IssueVoid",
+        :void      => "VoidPreAuthorization",
         :credit    => "IssueKeyedRefund",
         :reference_credit => "IssueRefundByReference"
       }
@@ -80,11 +89,10 @@ module ActiveMerchant #:nodoc:
       # * <tt>authorization</tt> - The authorization string returned from the initial authorization or purchase.
       def void(authorization, options = {})
         reference, options[:order_id] = split_reference(authorization)
-
-        request = soap_request(:void) do |xml|
-          add_reference(xml, reference)
+        request = v4_soap_request(:void) do |xml|
+          add_reference_token(xml, reference)
         end
-        commit(:void, request)
+        commit(:void, request, true)
       end
 
       # Refund an amount back a cardholder
@@ -97,7 +105,7 @@ module ActiveMerchant #:nodoc:
       #   * <tt>:order_id</tt> - A unique reference for this order (required when performing a non-referenced credit)
       def credit(money, identification, options = {})
         if identification.is_a?(String)
-          deprecated CREDIT_DEPRECATION_MESSAGE
+          ActiveMerchant.deprecated CREDIT_DEPRECATION_MESSAGE
           refund(money, identification, options)
         else
           perform_credit(money, identification, options)
@@ -107,7 +115,6 @@ module ActiveMerchant #:nodoc:
       def refund(money, reference, options = {})
         perform_reference_credit(money, reference, options)
       end
-
 
       private
 
@@ -125,10 +132,26 @@ module ActiveMerchant #:nodoc:
         xml.target!
       end
 
+      def v4_soap_request(action)
+        xml = Builder::XmlMarkup.new :indent => 2
+        xml.instruct!
+        xml.tag! "soap:Envelope", ENV_NAMESPACES_V4 do
+          xml.tag! "soap:Body" do
+            xml.tag! ACTIONS[:void], "xmlns" => TX_NAMESPACE_V4 do
+              xml.tag! "merchantName", @options[:name]
+              xml.tag! "merchantSiteId", @options[:login]
+              xml.tag! "merchantKey", @options[:password]
+              yield xml
+            end
+          end
+        end
+        xml.target!
+      end
+
       def build_purchase_request(action, money, credit_card, options)
         requires!(options, :order_id)
 
-        request = soap_request(action) do |xml|
+        soap_request(action) do |xml|
           add_invoice(xml, options)
           add_amount(xml, money)
           add_credit_card(xml, credit_card)
@@ -139,7 +162,7 @@ module ActiveMerchant #:nodoc:
       def build_capture_request(action, money, identification, options)
         reference, options[:order_id] = split_reference(identification)
 
-        request = soap_request(action) do |xml|
+        soap_request(action) do |xml|
           add_reference(xml, reference)
           add_invoice(xml, options)
           add_amount(xml, money)
@@ -176,13 +199,6 @@ module ActiveMerchant #:nodoc:
         xml.tag! "strName", @options[:name]
       end
 
-      def expdate(credit_card)
-        year  = sprintf("%.4i", credit_card.year)
-        month = sprintf("%.2i", credit_card.month)
-
-        "#{month}#{year[-2..-1]}"
-      end
-
       def add_invoice(xml, options)
         xml.tag! "strOrderNumber", options[:order_id].to_s.gsub(/[^\w]/, '').slice(0, 25)
       end
@@ -195,6 +211,10 @@ module ActiveMerchant #:nodoc:
         xml.tag! "strReferenceCode", reference
       end
 
+      def add_reference_token(xml, reference)
+        xml.tag! "token", reference
+      end
+
       def add_address(xml, options)
         if address = options[:billing_address] || options[:address]
           xml.tag! "strAVSStreetAddress", address[:address1]
@@ -203,10 +223,14 @@ module ActiveMerchant #:nodoc:
       end
 
       def add_credit_card(xml, credit_card)
-        xml.tag! "strPAN", credit_card.number
-        xml.tag! "strExpDate", expdate(credit_card)
-        xml.tag! "strCardHolder", credit_card.name
-        xml.tag! "strCVCode", credit_card.verification_value if credit_card.verification_value?
+        if credit_card.respond_to?(:track_data) && credit_card.track_data.present?
+          xml.tag! "trackData", credit_card.track_data
+        else
+         xml.tag! "strPAN", credit_card.number
+         xml.tag! "strExpDate", expdate(credit_card)
+         xml.tag! "strCardHolder", credit_card.name
+         xml.tag! "strCVCode", credit_card.verification_value if credit_card.verification_value?
+        end
       end
 
       def split_reference(reference)
@@ -252,17 +276,25 @@ module ActiveMerchant #:nodoc:
 
         response[:message] = response["faultstring"].to_s.gsub("\n", " ")
         response
-      rescue REXML::ParseException => e
+      rescue REXML::ParseException
         response[:http_body]        = http_response.body
         response[:message]          = "Failed to parse the failed response"
         response
       end
 
-      def commit(action, request)
+      def soap_action(action, v4 = false)
+        v4 ? "#{TX_NAMESPACE_V4}#{ACTIONS[action]}" : "#{TX_NAMESPACE}/#{ACTIONS[action]}"
+      end
+
+      def url(v4 = false)
+        v4 ? v4_live_url : live_url
+      end
+
+      def commit(action, request, v4 = false)
         begin
-          data = ssl_post(self.live_url, request,
+          data = ssl_post(url(v4), request,
                    "Content-Type" => 'text/xml; charset=utf-8',
-                   "SOAPAction"   => "http://merchantwarehouse.com/MerchantWARE/Client/TransactionRetail/#{ACTIONS[action]}"
+                   "SOAPAction"   => soap_action(action, v4)
                  )
           response = parse(action, data)
         rescue ActiveMerchant::ResponseError => e
@@ -285,4 +317,3 @@ module ActiveMerchant #:nodoc:
     end
   end
 end
-

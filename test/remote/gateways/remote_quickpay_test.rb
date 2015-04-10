@@ -181,7 +181,7 @@ class RemoteQuickpayTest < Test::Unit::TestCase
   end
 
   def test_failed_store
-    assert store = @gateway.store(credit_card('400010001111222a'), @options.merge(:description => "New subscription"))
+    assert store = @gateway.store(credit_card('4'), @options.merge(:description => "New subscription"))
     assert_failure store
     assert_equal "Error in field: cardnumber", store.message
   end

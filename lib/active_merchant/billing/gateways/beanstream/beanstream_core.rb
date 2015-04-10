@@ -63,10 +63,10 @@ module ActiveMerchant #:nodoc:
         base.default_currency = 'CAD'
 
         # The countries the gateway supports merchants from as 2 digit ISO country codes
-        base.supported_countries = ['CA']
+        base.supported_countries = ['CA', 'US']
 
         # The card types supported by the payment gateway
-        base.supported_cardtypes = [:visa, :master, :american_express]
+        base.supported_cardtypes = [:visa, :master, :american_express, :discover, :diners_club, :jcb]
 
         # The homepage URL of the gateway
         base.homepage_url = 'http://www.beanstream.com/'
@@ -87,7 +87,7 @@ module ActiveMerchant #:nodoc:
       end
 
       def capture(money, authorization, options = {})
-        reference, amount, type = split_auth(authorization)
+        reference, _, _ = split_auth(authorization)
 
         post = {}
         add_amount(post, money)
@@ -98,7 +98,7 @@ module ActiveMerchant #:nodoc:
 
       def refund(money, source, options = {})
         post = {}
-        reference, amount, type = split_auth(source)
+        reference, _, type = split_auth(source)
         add_reference(post, reference)
         add_transaction_type(post, refund_action(type))
         add_amount(post, money)
@@ -106,7 +106,7 @@ module ActiveMerchant #:nodoc:
       end
 
       def credit(money, source, options = {})
-        deprecated Gateway::CREDIT_DEPRECATION_MESSAGE
+        ActiveMerchant.deprecated Gateway::CREDIT_DEPRECATION_MESSAGE
         refund(money, source, options)
       end
 
@@ -117,6 +117,10 @@ module ActiveMerchant #:nodoc:
         else
           :purchase
         end
+      end
+
+      def add_customer_ip(post, options)
+        post[:customerIP] = options[:ip] if options[:ip]
       end
 
       def void_action(original_transaction_type)
@@ -235,6 +239,7 @@ module ActiveMerchant #:nodoc:
 
       def add_recurring_invoice(post, options)
         post[:rbApplyTax1] = options[:apply_tax1]
+        post[:rbApplyTax2] = options[:apply_tax2]
       end
 
       def add_recurring_operation_type(post, operation)
@@ -288,7 +293,7 @@ module ActiveMerchant #:nodoc:
         results = {}
         if !body.nil?
           body.split(/&/).each do |pair|
-            key, val = pair.split(/=/)
+            key, val = pair.split(/\=/)
             results[key.to_sym] = val.nil? ? nil : CGI.unescape(val)
           end
         end
