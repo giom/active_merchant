@@ -126,7 +126,7 @@ module ActiveMerchant #:nodoc:
       def build_sale_request(money, credit_card, options)
         build_xml_request('SALE') do |xml|
           add_credit_card(xml, credit_card, options)
-          add_addresses(xml, options)
+          add_addresses(xml, credit_card, options)
           add_customer_data(xml, options)
           add_invoice_data(xml, options)
           xml.tag! 'TotalAmount', amount(money)
@@ -139,7 +139,7 @@ module ActiveMerchant #:nodoc:
       def build_authonly_request(money, credit_card, options)
         build_xml_request('AUTHONLY') do |xml|
           add_credit_card(xml, credit_card, options)
-          add_addresses(xml, options)
+          add_addresses(xml, credit_card, options)
           add_customer_data(xml, options)
           add_invoice_data(xml, options)
           xml.tag! 'TotalAmount', amount(money)
@@ -175,6 +175,7 @@ module ActiveMerchant #:nodoc:
       def build_tokenize_request(credit_card)
         build_xml_request('TOKENIZE') do |xml|
           add_credit_card(xml, credit_card)
+          add_addresses(xml, credit_card, options)
 
           xml.target!
         end
@@ -250,7 +251,7 @@ module ActiveMerchant #:nodoc:
 
       end
       
-      def add_addresses(xml, options)
+      def add_addresses(xml, credit_card, options)
         if billing_address = options[:billing_address] || options[:address]
           xml.tag! 'BillingAddress', [billing_address[:address1], billing_address[:address2]].compact.join(" ")
           xml.tag! 'BillingCity', billing_address[:city]
@@ -258,6 +259,9 @@ module ActiveMerchant #:nodoc:
           xml.tag! 'BillingPostalCode', billing_address[:zip]
           xml.tag! 'BillingCountry', lookup_country_code(billing_address[:country])
           xml.tag! 'BillingPhone', billing_address[:phone]
+        else
+          xml.tag! 'BillingAddress', credit_card.street if credit_card.street
+          xml.tag! 'BillingPostalCode', credit_card.zip_code if credit_card.zip_code
         end
         
         if shipping_address = options[:shipping_address]
