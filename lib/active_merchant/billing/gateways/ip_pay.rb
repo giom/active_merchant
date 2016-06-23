@@ -260,8 +260,8 @@ module ActiveMerchant #:nodoc:
           xml.tag! 'BillingCountry', lookup_country_code(billing_address[:country])
           xml.tag! 'BillingPhone', billing_address[:phone]
         else
-          xml.tag! 'BillingAddress', credit_card.street if credit_card.street
-          xml.tag! 'BillingPostalCode', credit_card.zip_code if credit_card.zip_code
+          xml.tag! 'BillingAddress', credit_card.street if credit_card && credit_card.street
+          xml.tag! 'BillingPostalCode', credit_card.zip_code if credit_card && credit_card.zip_code
         end
         
         if shipping_address = options[:shipping_address]
