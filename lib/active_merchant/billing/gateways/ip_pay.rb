@@ -23,8 +23,10 @@ module ActiveMerchant #:nodoc:
         "001" =>  "Refer to card issuer.",
         "002" =>  "Refer to card issuer, special condition.",
         "003" =>  "Pick up card.",
+        "004" =>  "Pick up card.",
         "200" =>  "Deny - Pick up card.",
         "005" =>  "Do not honor.",
+        "012" =>  "Invalid Transaction",
         "100" =>  "Deny.",
         "006" =>  "Error.",
         "181" =>  "Format error.",
@@ -37,10 +39,12 @@ module ActiveMerchant #:nodoc:
         "103" =>  "Deny - Invalid manual Entry 4DBC.",
         "182" =>  "Please wait.",
         "109" =>  "Invalid merchant.",
+        "030" =>  "Format Error.",
         "041" =>  "Pick up card (lost card).",
         "043" =>  "Pick up card (stolen card).",
         "051" =>  "Insufficient funds.",
         "052" =>  "No checking account.",
+        "053" =>  "No savings account.",
         "105" =>  "Deny - Account Cancelled.",
         "054" =>  "Expired Card.",
         "101" =>  "Expired Card.",
@@ -235,7 +239,7 @@ module ActiveMerchant #:nodoc:
       def add_credit_card(xml, credit_card, options = {})
         if options[:token]
           xml.tag! 'Token',  options[:token]
-
+          xml.tag! 'CardName', options[:card_name]
         else
           xml.tag!('CardNum', credit_card.number, options[:tokenize] ? {'Tokenize' => true} : {})
           xml.tag! 'CardExpMonth', format_exp(credit_card.month)
