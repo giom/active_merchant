@@ -108,6 +108,10 @@ module ActiveMerchant #:nodoc:
         commit(nil, build_tokenize_request(credit_card))
       end
 
+      def list_updated_tokens(start, stop)
+        commit(nil, build_updated_tokens_request(start, stop))
+      end
+
       
       private
       
@@ -116,6 +120,7 @@ module ActiveMerchant #:nodoc:
         xml.tag! 'ippay' do
           # The basic values needed for any request
           xml.tag! 'TerminalID', @options[:login]
+          xml.tag! 'Password', @options[:password] unless @options[:password].blank?
           xml.tag! 'TransactionType', transaction_type
           xml.tag! 'TransactionID', transaction_id.nil? ? generate_unique_id.slice(0, 18) : transaction_id
           
@@ -138,6 +143,10 @@ module ActiveMerchant #:nodoc:
           
           xml.target!
         end
+      end
+
+      def build_updated_tokens_request(start, stop)
+        
       end
       
       def build_authonly_request(money, credit_card, options)
